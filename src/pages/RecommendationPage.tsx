@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Shuffle, ShoppingCart } from "lucide-react";
+import { ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
 import ProductCard from "@/components/ProductCard";
@@ -72,15 +72,6 @@ const RecommendationPage = () => {
     fetchRecommendations();
   }, [userEmail, navigate]);
 
-  const shuffleProducts = () => {
-    const shuffled = [...displayedProducts].sort(() => Math.random() - 0.5);
-    setDisplayedProducts(shuffled);
-    toast({
-      title: "Products refreshed!",
-      description: "Here are some new recommendations for you.",
-    });
-  };
-
   return (
     <div className="min-h-screen bg-gradient-earth">
       <Navbar userEmail={userEmail || undefined} />
@@ -101,16 +92,8 @@ const RecommendationPage = () => {
           )}
         </div>
 
-        {/* Action buttons */}
-        <div className="flex justify-center gap-4 mb-8 animate-fade-in">
-          <Button
-            onClick={shuffleProducts}
-            className="gap-2 bg-secondary hover:bg-secondary/90 text-secondary-foreground font-semibold shadow-card hover:shadow-hover transition-all duration-300"
-            disabled={loading}
-          >
-            <Shuffle className="w-4 h-4" />
-            Shuffle Recommendations
-          </Button>
+        {/* Action button */}
+        <div className="flex justify-center mb-8 animate-fade-in">
           <Button
             onClick={() => navigate("/cart")}
             variant="outline"
