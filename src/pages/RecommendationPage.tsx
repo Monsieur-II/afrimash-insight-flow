@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Navbar from "@/components/Navbar";
 import ProductCard from "@/components/ProductCard";
 import { getUserEmail } from "@/utils/auth";
@@ -33,13 +34,21 @@ const RecommendationPage = () => {
     const fetchRecommendations = async () => {
       try {
         setLoading(true);
+        
+        // Create AbortController with 10-minute timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minutes
+        
         const response = await fetch(`${API_CONFIG.baseUrl}/customers/login`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ email: userEmail }),
+          signal: controller.signal,
         });
+        
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
           throw new Error("Failed to fetch recommendations");
@@ -59,9 +68,13 @@ const RecommendationPage = () => {
         setDisplayedProducts(products);
       } catch (error) {
         console.error("Error fetching recommendations:", error);
+        const errorMessage = error instanceof Error && error.name === 'AbortError'
+          ? "Request timed out. Please try again."
+          : "Unable to fetch personalized recommendations. Please try again.";
+        
         toast({
           title: "Error loading recommendations",
-          description: "Unable to fetch personalized recommendations. Please try again.",
+          description: errorMessage,
           variant: "destructive",
         });
       } finally {
@@ -109,34 +122,60 @@ const RecommendationPage = () => {
           </Button>
         </div>
 
-        {/* Products grid */}
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="inline-block w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
-            <p className="text-muted-foreground">Loading your personalized recommendations...</p>
-          </div>
-        ) : displayedProducts.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">No recommendations available at the moment.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {displayedProducts.map((product, index) => (
-              <div
-                key={product.id}
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
-                <ProductCard
-                  id={product.id}
-                  name={product.name}
-                  description={product.description}
-                  price={product.price}
-                  image={product.image}
-                />
+        {/* Tabs for Recommendations and Dashboard */}
+        <Tabs defaultValue="recommendations" className="w-full">
+          <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 mb-8">
+            <TabsTrigger value="recommendations">Product Recommendations</TabsTrigger>
+            <TabsTrigger value="dashboard">Your Dashboard</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="recommendations">
+            {/* Products grid */}
+            {loading ? (
+              <div className="text-center py-12">
+                <div className="inline-block w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p className="text-muted-foreground">Loading your personalized recommendations...</p>
               </div>
-            ))}
-          </div>
-        )}
+            ) : displayedProducts.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">No recommendations available at the moment.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {displayedProducts.map((product, index) => (
+                  <div
+                    key={product.id}
+                    style={{ animationDelay: `${index * 100}ms` }}
+                  >
+                    <ProductCard
+                      id={product.id}
+                      name={product.name}
+                      description={product.description}
+                      price={product.price}
+                      image={product.image}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+          
+          <TabsContent value="dashboard">
+            <div className="flex justify-center items-center py-8">
+              <div className="w-full max-w-6xl bg-card rounded-lg border border-border shadow-card p-4">
+                <iframe 
+                  title="Customer Dashboard" 
+                  width="100%" 
+                  height="600" 
+                  src="https://app.powerbi.com/view?r=eyJrIjoiNmNiNWZkMGItYmZmNC00MjE1LTkyYWYtZGU2N2ZjZWJiNDQ2IiwidCI6IjQ0ODdiNTJmLWYxMTgtNDgzMC1iNDlkLTNjMjk4Y2I3MTA3NSJ9" 
+                  frameBorder="0" 
+                  allowFullScreen={true}
+                  className="rounded"
+                ></iframe>
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
 
         {/* Additional info section */}
         <div className="mt-12 p-8 bg-card rounded-lg border border-border shadow-card text-center animate-fade-in">
