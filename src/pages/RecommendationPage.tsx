@@ -1,26 +1,79 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Shuffle } from "lucide-react";
+import { Shuffle, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
 import ProductCard from "@/components/ProductCard";
 import { getUserEmail } from "@/utils/auth";
-import { products } from "@/data/products";
 import { toast } from "@/hooks/use-toast";
+import { API_CONFIG } from "@/config/api";
+import { useCart } from "@/contexts/CartContext";
+
+interface Product {
+  id: string;
+  name: string;
+  description: string;
+  price: string;
+  image: string;
+}
 
 const RecommendationPage = () => {
   const navigate = useNavigate();
   const userEmail = getUserEmail();
-  const [displayedProducts, setDisplayedProducts] = useState(products);
+  const { items } = useCart();
+  const [displayedProducts, setDisplayedProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!userEmail) {
       navigate("/");
+      return;
     }
+    
+    const fetchRecommendations = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`${API_CONFIG.baseUrl}/customers/login`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email: userEmail }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch recommendations");
+        }
+
+        const data = await response.json();
+        
+        // Transform API response to match our Product interface
+        const products: Product[] = data.map((item: any, index: number) => ({
+          id: `product-${index}`,
+          name: item.title,
+          description: `Premium quality ${item.title.toLowerCase()}`,
+          price: `₦${Math.floor(Math.random() * 50000 + 5000).toLocaleString()}`,
+          image: item.image_url,
+        }));
+
+        setDisplayedProducts(products);
+      } catch (error) {
+        console.error("Error fetching recommendations:", error);
+        toast({
+          title: "Error loading recommendations",
+          description: "Unable to fetch personalized recommendations. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRecommendations();
   }, [userEmail, navigate]);
 
   const shuffleProducts = () => {
-    const shuffled = [...products].sort(() => Math.random() - 0.5);
+    const shuffled = [...displayedProducts].sort(() => Math.random() - 0.5);
     setDisplayedProducts(shuffled);
     toast({
       title: "Products refreshed!",
@@ -53,28 +106,54 @@ const RecommendationPage = () => {
           <Button
             onClick={shuffleProducts}
             className="gap-2 bg-secondary hover:bg-secondary/90 text-secondary-foreground font-semibold shadow-card hover:shadow-hover transition-all duration-300"
+            disabled={loading}
           >
             <Shuffle className="w-4 h-4" />
             Shuffle Recommendations
           </Button>
+          <Button
+            onClick={() => navigate("/cart")}
+            variant="outline"
+            className="gap-2 relative"
+          >
+            <ShoppingCart className="w-4 h-4" />
+            View Cart
+            {items.length > 0 && (
+              <span className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                {items.length}
+              </span>
+            )}
+          </Button>
         </div>
 
         {/* Products grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {displayedProducts.map((product, index) => (
-            <div
-              key={product.id}
-              style={{ animationDelay: `${index * 100}ms` }}
-            >
-              <ProductCard
-                name={product.name}
-                description={product.description}
-                price={product.price}
-                image={product.image}
-              />
-            </div>
-          ))}
-        </div>
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="inline-block w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p className="text-muted-foreground">Loading your personalized recommendations...</p>
+          </div>
+        ) : displayedProducts.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">No recommendations available at the moment.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {displayedProducts.map((product, index) => (
+              <div
+                key={product.id}
+                style={{ animationDelay: `${index * 100}ms` }}
+              >
+                <ProductCard
+                  id={product.id}
+                  name={product.name}
+                  description={product.description}
+                  price={product.price}
+                  image={product.image}
+                />
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Additional info section */}
         <div className="mt-12 p-8 bg-card rounded-lg border border-border shadow-card text-center animate-fade-in">
